@@ -19,6 +19,7 @@ use super::{preflight_message_request, Provider, ProviderFuture};
 pub const DEFAULT_XAI_BASE_URL: &str = "https://api.x.ai/v1";
 pub const DEFAULT_OPENAI_BASE_URL: &str = "https://api.openai.com/v1";
 pub const DEFAULT_DASHSCOPE_BASE_URL: &str = "https://dashscope.aliyuncs.com/compatible-mode/v1";
+pub const DEFAULT_OPENROUTER_BASE_URL: &str = "https://openrouter.ai/api/v1";
 const REQUEST_ID_HEADER: &str = "request-id";
 const ALT_REQUEST_ID_HEADER: &str = "x-request-id";
 const DEFAULT_INITIAL_BACKOFF: Duration = Duration::from_secs(1);
@@ -36,6 +37,7 @@ pub struct OpenAiCompatConfig {
 const XAI_ENV_VARS: &[&str] = &["XAI_API_KEY"];
 const OPENAI_ENV_VARS: &[&str] = &["OPENAI_API_KEY"];
 const DASHSCOPE_ENV_VARS: &[&str] = &["DASHSCOPE_API_KEY"];
+const OPENROUTER_ENV_VARS: &[&str] = &["OPENROUTER_API_KEY"];
 
 impl OpenAiCompatConfig {
     #[must_use]
@@ -71,6 +73,16 @@ impl OpenAiCompatConfig {
             default_base_url: DEFAULT_DASHSCOPE_BASE_URL,
         }
     }
+    
+    #[must_use]
+    pub const fn openrouter() -> Self {
+        Self {
+            provider_name: "OpenRouter",
+            api_key_env: "OPENROUTER_API_KEY",
+            base_url_env: "OPENROUTER_BASE_URL",
+            default_base_url: DEFAULT_OPENROUTER_BASE_URL,
+        }
+    }
 
     #[must_use]
     pub fn credential_env_vars(self) -> &'static [&'static str] {
@@ -78,6 +90,7 @@ impl OpenAiCompatConfig {
             "xAI" => XAI_ENV_VARS,
             "OpenAI" => OPENAI_ENV_VARS,
             "DashScope" => DASHSCOPE_ENV_VARS,
+            "OpenRouter" => OPENROUTER_ENV_VARS,
             _ => &[],
         }
     }
@@ -221,11 +234,18 @@ impl OpenAiCompatClient {
         request: &MessageRequest,
     ) -> Result<reqwest::Response, ApiError> {
         let request_url = chat_completions_endpoint(&self.base_url);
-        self.http
+        let mut builder = self.http
             .post(&request_url)
             .header("content-type", "application/json")
-            .bearer_auth(&self.api_key)
-            .json(&build_chat_completion_request(request, self.config()))
+            .bearer_auth(&self.api_key);
+        
+        if self.config.provider_name == "OpenRouter" {
+            builder = builder
+                .header("HTTP-Referer", "https://github.com/vinaycode")
+                .header("X-Title", "VinayCode");
+        }
+        
+        builder.json(&build_chat_completion_request(request, self.config()))
             .send()
             .await
             .map_err(ApiError::from)
@@ -734,7 +754,7 @@ fn strip_routing_prefix(model: &str) -> &str {
         let prefix = &model[..pos];
         // Only strip if the prefix before "/" is a known routing prefix,
         // not if "/" appears in the middle of the model name for other reasons.
-        if matches!(prefix, "openai" | "xai" | "grok" | "qwen") {
+        if matches!(prefix, "openai" | "xai" | "grok" | "qwen" | "openrouter") {
             &model[pos + 1..]
         } else {
             model

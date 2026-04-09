@@ -31,17 +31,11 @@ impl ProviderClient {
             ProviderKind::Xai => Ok(Self::Xai(OpenAiCompatClient::from_env(
                 OpenAiCompatConfig::xai(),
             )?)),
+            ProviderKind::OpenRouter => {
+                Ok(Self::OpenAi(OpenAiCompatClient::from_env(OpenAiCompatConfig::openrouter())?))
+            },
             ProviderKind::OpenAi => {
-                // DashScope models (qwen-*) also return ProviderKind::OpenAi because they
-                // speak the OpenAI wire format, but they need the DashScope config which
-                // reads DASHSCOPE_API_KEY and points at dashscope.aliyuncs.com.
-                let config = match providers::metadata_for_model(&resolved_model) {
-                    Some(meta) if meta.auth_env == "DASHSCOPE_API_KEY" => {
-                        OpenAiCompatConfig::dashscope()
-                    }
-                    _ => OpenAiCompatConfig::openai(),
-                };
-                Ok(Self::OpenAi(OpenAiCompatClient::from_env(config)?))
+                Ok(Self::OpenAi(OpenAiCompatClient::from_env(OpenAiCompatConfig::openai())?))
             }
         }
     }
@@ -205,30 +199,28 @@ mod tests {
     }
 
     #[test]
-    fn dashscope_model_uses_dashscope_config_not_openai() {
-        // Regression: qwen-plus was being routed to OpenAiCompatConfig::openai()
-        // which reads OPENAI_API_KEY and points at api.openai.com, when it should
-        // use OpenAiCompatConfig::dashscope() which reads DASHSCOPE_API_KEY and
-        // points at dashscope.aliyuncs.com.
+    fn qwen_model_routes_to_openrouter_not_dashscope() {
+        // qwen-plus and all bare qwen-* models must now route through OpenRouter
+        // (OPENROUTER_API_KEY / openrouter.ai) instead of Alibaba DashScope.
         let _lock = env_lock();
-        let _dashscope = EnvVarGuard::set("DASHSCOPE_API_KEY", Some("test-dashscope-key"));
+        let _openrouter = EnvVarGuard::set("OPENROUTER_API_KEY", Some("test-openrouter-key"));
         let _openai = EnvVarGuard::set("OPENAI_API_KEY", None);
 
         let client = ProviderClient::from_model("qwen-plus");
 
-        // Must succeed (not fail with "missing OPENAI_API_KEY")
+        // Must succeed using OPENROUTER_API_KEY
         assert!(
             client.is_ok(),
-            "qwen-plus with DASHSCOPE_API_KEY set should build successfully, got: {:?}",
+            "qwen-plus with OPENROUTER_API_KEY set should build successfully, got: {:?}",
             client.err()
         );
 
-        // Verify it's the OpenAi variant pointed at the DashScope base URL.
+        // Verify it's the OpenAi variant pointed at the OpenRouter base URL.
         match client.unwrap() {
             ProviderClient::OpenAi(openai_client) => {
                 assert!(
-                    openai_client.base_url().contains("dashscope.aliyuncs.com"),
-                    "qwen-plus should route to DashScope base URL (contains 'dashscope.aliyuncs.com'), got: {}",
+                    openai_client.base_url().contains("openrouter.ai"),
+                    "qwen-plus should route to OpenRouter base URL (contains 'openrouter.ai'), got: {}",
                     openai_client.base_url()
                 );
             }

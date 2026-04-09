@@ -62,7 +62,7 @@ pub use config::{
     McpServerConfig, McpStdioServerConfig, McpTransport, McpWebSocketServerConfig, OAuthConfig,
     ProviderFallbackConfig, ResolvedPermissionMode, RuntimeConfig, RuntimeFeatureConfig,
     RuntimeHookConfig, RuntimePermissionRuleConfig, RuntimePluginConfig, ScopedMcpServerConfig,
-    CLAW_SETTINGS_SCHEMA_NAME,
+    VINAYCODE_SETTINGS_SCHEMA_NAME,
 };
 pub use config_validate::{
     check_unsupported_format, format_diagnostics, validate_config_file, ConfigDiagnostic,
@@ -152,7 +152,7 @@ pub use session::{
 };
 pub use sse::{IncrementalSseParser, SseEvent};
 pub use stale_base::{
-    check_base_commit, format_stale_base_warning, read_claw_base_file, resolve_expected_base,
+    check_base_commit, format_stale_base_warning, read_vinaycode_base_file, resolve_expected_base,
     BaseCommitSource, BaseCommitState,
 };
 pub use stale_branch::{

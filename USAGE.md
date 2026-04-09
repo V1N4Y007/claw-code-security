@@ -1,6 +1,6 @@
-# Claw Code Usage
+# VinayCode Usage
 
-This guide covers the current Rust workspace under `rust/` and the `claw` CLI binary. If you are brand new, make the doctor health check your first run: start `claw`, then run `/doctor`.
+This guide covers the current Rust workspace under `rust/` and the `vinaycode` CLI binary. If you are brand new, make the doctor health check your first run: start `vinaycode`, then run `/doctor`.
 
 ## Quick-start health check
 
@@ -9,20 +9,20 @@ Run this before prompts, sessions, or automation:
 ```bash
 cd rust
 cargo build --workspace
-./target/debug/claw
+./target/debug/vinaycode
 # first command inside the REPL
 /doctor
 ```
 
-`/doctor` is the built-in setup and preflight diagnostic. Once you have a saved session, you can rerun it with `./target/debug/claw --resume latest /doctor`.
+`/doctor` is the built-in setup and preflight diagnostic. Once you have a saved session, you can rerun it with `./target/debug/vinaycode --resume latest /doctor`.
 
 ## Prerequisites
 
 - Rust toolchain with `cargo`
 - One of:
-  - `ANTHROPIC_API_KEY` for direct API access
-  - `claw login` for OAuth-based auth
-- Optional: `ANTHROPIC_BASE_URL` when targeting a proxy or local service
+  - `OPENROUTER_API_KEY` for primary API access
+  - `vinaycode login` for OAuth-based auth (Anthropic only)
+- Optional: `OPENROUTER_BASE_URL` when targeting a proxy or local service
 
 ## Install / build the workspace
 
@@ -39,7 +39,7 @@ The CLI binary is available at `rust/target/debug/claw` after a debug build. Mak
 
 ```bash
 cd rust
-./target/debug/claw
+./target/debug/vinaycode
 /doctor
 ```
 
@@ -47,38 +47,38 @@ cd rust
 
 ```bash
 cd rust
-./target/debug/claw
+./target/debug/vinaycode
 ```
 
 ### One-shot prompt
 
 ```bash
 cd rust
-./target/debug/claw prompt "summarize this repository"
+./target/debug/vinaycode prompt "summarize this repository"
 ```
 
 ### Shorthand prompt mode
 
 ```bash
 cd rust
-./target/debug/claw "explain rust/crates/runtime/src/lib.rs"
+./target/debug/vinaycode "explain rust/crates/runtime/src/lib.rs"
 ```
 
 ### JSON output for scripting
 
 ```bash
 cd rust
-./target/debug/claw --output-format json prompt "status"
+./target/debug/vinaycode --output-format json prompt "status"
 ```
 
 ## Model and permission controls
 
 ```bash
 cd rust
-./target/debug/claw --model sonnet prompt "review this diff"
-./target/debug/claw --permission-mode read-only prompt "summarize Cargo.toml"
-./target/debug/claw --permission-mode workspace-write prompt "update README.md"
-./target/debug/claw --allowedTools read,glob "inspect the runtime crate"
+./target/debug/vinaycode --model sonnet prompt "review this diff"
+./target/debug/vinaycode --permission-mode read-only prompt "summarize Cargo.toml"
+./target/debug/vinaycode --permission-mode workspace-write prompt "update README.md"
+./target/debug/vinaycode --allowedTools read,glob "inspect the runtime crate"
 ```
 
 Supported permission modes:
@@ -105,21 +105,21 @@ export ANTHROPIC_API_KEY="sk-ant-..."
 
 ```bash
 cd rust
-./target/debug/claw login
-./target/debug/claw logout
+./target/debug/vinaycode login
+./target/debug/vinaycode logout
 ```
 
 ### Which env var goes where
 
-`claw` accepts two Anthropic credential env vars and they are **not interchangeable** — the HTTP header Anthropic expects differs per credential shape. Putting the wrong value in the wrong slot is the most common 401 we see.
+`vinaycode` accepts multiple API key env vars. The primary one is `OPENROUTER_API_KEY`.
 
 | Credential shape | Env var | HTTP header | Typical source |
 |---|---|---|---|
+| OpenRouter key (`sk-or-v1-*`) | `OPENROUTER_API_KEY` | `Authorization: Bearer ...` | [openrouter.ai/keys](https://openrouter.ai/keys) |
 | `sk-ant-*` API key | `ANTHROPIC_API_KEY` | `x-api-key: sk-ant-...` | [console.anthropic.com](https://console.anthropic.com) |
-| OAuth access token (opaque) | `ANTHROPIC_AUTH_TOKEN` | `Authorization: Bearer ...` | `claw login` or an Anthropic-compatible proxy that mints Bearer tokens |
-| OpenRouter key (`sk-or-v1-*`) | `OPENAI_API_KEY` + `OPENAI_BASE_URL=https://openrouter.ai/api/v1` | `Authorization: Bearer ...` | [openrouter.ai/keys](https://openrouter.ai/keys) |
+| OAuth access token (opaque) | `ANTHROPIC_AUTH_TOKEN` | `Authorization: Bearer ...` | `vinaycode login` |
 
-**Why this matters:** if you paste an `sk-ant-*` key into `ANTHROPIC_AUTH_TOKEN`, Anthropic's API will return `401 Invalid bearer token` because `sk-ant-*` keys are rejected over the Bearer header. The fix is a one-line env var swap — move the key to `ANTHROPIC_API_KEY`. Recent `claw` builds detect this exact shape (401 + `sk-ant-*` in the Bearer slot) and append a hint to the error message pointing at the fix.
+**Why this matters:** `vinaycode` detects which key is present and selects the provider accordingly. If you have `OPENROUTER_API_KEY` set, it will default to OpenRouter.
 
 **If you meant a different provider:** if `claw` reports missing Anthropic credentials but you already have `OPENAI_API_KEY`, `XAI_API_KEY`, or `DASHSCOPE_API_KEY` exported, you most likely forgot to prefix the model name with the provider's routing prefix. Use `--model openai/gpt-4.1-mini` (OpenAI-compat / OpenRouter / Ollama), `--model grok` (xAI), or `--model qwen-plus` (DashScope) and the prefix router will select the right backend regardless of the ambient credentials. The error message now includes a hint that names the detected env var.
 
@@ -298,22 +298,22 @@ let client = build_http_client_with(&config).expect("proxy client");
 
 ```bash
 cd rust
-./target/debug/claw status
-./target/debug/claw sandbox
-./target/debug/claw agents
-./target/debug/claw mcp
-./target/debug/claw skills
-./target/debug/claw system-prompt --cwd .. --date 2026-04-04
+./target/debug/vinaycode status
+./target/debug/vinaycode sandbox
+./target/debug/vinaycode agents
+./target/debug/vinaycode mcp
+./target/debug/vinaycode skills
+./target/debug/vinaycode system-prompt --cwd .. --date 2026-04-04
 ```
 
 ## Session management
 
-REPL turns are persisted under `.claw/sessions/` in the current workspace.
+REPL turns are persisted under `.vinaycode/sessions/` in the current workspace.
 
 ```bash
 cd rust
-./target/debug/claw --resume latest
-./target/debug/claw --resume latest /status /diff
+./target/debug/vinaycode --resume latest
+./target/debug/vinaycode --resume latest /status /diff
 ```
 
 Useful interactive commands include `/help`, `/status`, `/cost`, `/config`, `/session`, `/model`, `/permissions`, and `/export`.
@@ -322,11 +322,11 @@ Useful interactive commands include `/help`, `/status`, `/cost`, `/config`, `/se
 
 Runtime config is loaded in this order, with later entries overriding earlier ones:
 
-1. `~/.claw.json`
-2. `~/.config/claw/settings.json`
-3. `<repo>/.claw.json`
-4. `<repo>/.claw/settings.json`
-5. `<repo>/.claw/settings.local.json`
+1. `~/.vinaycode.json`
+2. `~/.config/vinaycode/settings.json`
+3. `<repo>/.vinaycode.json`
+4. `<repo>/.vinaycode/settings.json`
+5. `<repo>/.vinaycode/settings.local.json`
 
 ## Mock parity harness
 

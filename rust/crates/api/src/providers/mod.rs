@@ -33,6 +33,7 @@ pub enum ProviderKind {
     Anthropic,
     Xai,
     OpenAi,
+    OpenRouter,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -122,6 +123,15 @@ const MODEL_REGISTRY: &[(&str, ProviderMetadata)] = &[
             default_base_url: openai_compat::DEFAULT_XAI_BASE_URL,
         },
     ),
+    (
+        "qwen3",
+        ProviderMetadata {
+            provider: ProviderKind::OpenRouter,
+            auth_env: "OPENROUTER_API_KEY",
+            base_url_env: "OPENROUTER_BASE_URL",
+            default_base_url: openai_compat::DEFAULT_OPENROUTER_BASE_URL,
+        },
+    ),
 ];
 
 #[must_use]
@@ -145,6 +155,10 @@ pub fn resolve_model_alias(model: &str) -> String {
                     _ => trimmed,
                 },
                 ProviderKind::OpenAi => trimmed,
+                ProviderKind::OpenRouter => match *alias {
+                    "qwen3" => "openrouter/qwen/qwen3-next-80b-a3b-instruct:free",
+                    _ => trimmed,
+                },
             })
         })
         .map_or_else(|| trimmed.to_string(), ToOwned::to_owned)
@@ -181,17 +195,26 @@ pub fn metadata_for_model(model: &str) -> Option<ProviderMetadata> {
             default_base_url: openai_compat::DEFAULT_OPENAI_BASE_URL,
         });
     }
-    // Alibaba DashScope compatible-mode endpoint. Routes qwen/* and bare
-    // qwen-* model names (qwen-max, qwen-plus, qwen-turbo, qwen-qwq, etc.)
-    // to the OpenAI-compat client pointed at DashScope's /compatible-mode/v1.
-    // Uses the OpenAi provider kind because DashScope speaks the OpenAI REST
-    // shape — only the base URL and auth env var differ.
+    // OpenRouter routing for explicit openrouter/ prefix — must come BEFORE
+    // the qwen/ check so that openrouter/qwen/* models are not misrouted to
+    // DashScope.
+    if canonical.starts_with("openrouter/") {
+        return Some(ProviderMetadata {
+            provider: ProviderKind::OpenRouter,
+            auth_env: "OPENROUTER_API_KEY",
+            base_url_env: "OPENROUTER_BASE_URL",
+            default_base_url: openai_compat::DEFAULT_OPENROUTER_BASE_URL,
+        });
+    }
+    // Bare qwen/ and qwen- prefixes route through OpenRouter.
+    // Use openrouter/ prefix for explicit routing; bare qwen/* also maps here
+    // so users don't need to type the full prefix.
     if canonical.starts_with("qwen/") || canonical.starts_with("qwen-") {
         return Some(ProviderMetadata {
-            provider: ProviderKind::OpenAi,
-            auth_env: "DASHSCOPE_API_KEY",
-            base_url_env: "DASHSCOPE_BASE_URL",
-            default_base_url: openai_compat::DEFAULT_DASHSCOPE_BASE_URL,
+            provider: ProviderKind::OpenRouter,
+            auth_env: "OPENROUTER_API_KEY",
+            base_url_env: "OPENROUTER_BASE_URL",
+            default_base_url: openai_compat::DEFAULT_OPENROUTER_BASE_URL,
         });
     }
     None
@@ -210,6 +233,9 @@ pub fn detect_provider_kind(model: &str) -> ProviderKind {
     }
     if openai_compat::has_api_key("XAI_API_KEY") {
         return ProviderKind::Xai;
+    }
+    if openai_compat::has_api_key("OPENROUTER_API_KEY") {
+        return ProviderKind::OpenRouter;
     }
     ProviderKind::Anthropic
 }
@@ -311,6 +337,11 @@ const FOREIGN_PROVIDER_ENV_VARS: &[(&str, &str, &str)] = &[
         "Alibaba DashScope",
         "prefix your model name with `qwen/` or `qwen-` (e.g. `--model qwen-plus`) so prefix routing selects the DashScope backend",
     ),
+    (
+        "OPENROUTER_API_KEY",
+        "OpenRouter",
+        "set `OPENROUTER_API_KEY` to use OpenRouter models (e.g. `--model openrouter/qwen/qwen3-next-80b-a3b-instruct:free`)",
+    ),
 ];
 
 /// Check whether an env var is set to a non-empty value either in the real
@@ -408,9 +439,27 @@ pub(crate) fn load_dotenv_file(
 /// Returns `None` when the file is missing, the key is absent, or the value
 /// is empty.
 pub(crate) fn dotenv_value(key: &str) -> Option<String> {
+    if cfg!(test) {
+        // During tests, don't walk up the filesystem to load real `.env` files.
+        // It breaks test isolation if the developer actually has API keys set.
+        // `EnvVarGuard` manipulates the real process env, so fall back to that.
+        return std::env::var(key).ok().filter(|v| !v.is_empty());
+    }
     let cwd = std::env::current_dir().ok()?;
-    let values = load_dotenv_file(&cwd.join(".env"))?;
-    values.get(key).filter(|value| !value.is_empty()).cloned()
+    // Walk up directory tree until we find a .env file
+    let mut dir = cwd.as_path();
+    loop {
+        if let Some(values) = load_dotenv_file(&dir.join(".env")) {
+            if let Some(value) = values.get(key).filter(|v| !v.is_empty()).cloned() {
+                return Some(value);
+            }
+        }
+        match dir.parent() {
+            Some(parent) => dir = parent,
+            None => break,
+        }
+    }
+    None
 }
 
 #[cfg(test)]
@@ -511,32 +560,28 @@ mod tests {
     }
 
     #[test]
-    fn qwen_prefix_routes_to_dashscope_not_anthropic() {
-        // User request from Discord #clawcode-get-help: web3g wants to use
-        // Qwen 3.6 Plus via native Alibaba DashScope API (not OpenRouter,
-        // which has lower rate limits). metadata_for_model must route
-        // qwen/* and bare qwen-* to the OpenAi provider kind pointed at
-        // the DashScope compatible-mode endpoint, regardless of whether
-        // ANTHROPIC_API_KEY is present in the environment.
+    fn qwen_prefix_routes_to_openrouter_not_dashscope() {
+        // All bare qwen/* and qwen-* model names now route through OpenRouter
+        // (OPENROUTER_API_KEY) instead of Alibaba DashScope.
         let meta = super::metadata_for_model("qwen/qwen-max")
-            .expect("qwen/ prefix must resolve to DashScope metadata");
-        assert_eq!(meta.provider, ProviderKind::OpenAi);
-        assert_eq!(meta.auth_env, "DASHSCOPE_API_KEY");
-        assert_eq!(meta.base_url_env, "DASHSCOPE_BASE_URL");
-        assert!(meta.default_base_url.contains("dashscope.aliyuncs.com"));
+            .expect("qwen/ prefix must resolve to OpenRouter metadata");
+        assert_eq!(meta.provider, ProviderKind::OpenRouter);
+        assert_eq!(meta.auth_env, "OPENROUTER_API_KEY");
+        assert_eq!(meta.base_url_env, "OPENROUTER_BASE_URL");
+        assert!(meta.default_base_url.contains("openrouter.ai"));
 
-        // Bare qwen- prefix also routes
+        // Bare qwen- prefix also routes to OpenRouter
         let meta2 = super::metadata_for_model("qwen-plus")
-            .expect("qwen- prefix must resolve to DashScope metadata");
-        assert_eq!(meta2.provider, ProviderKind::OpenAi);
-        assert_eq!(meta2.auth_env, "DASHSCOPE_API_KEY");
+            .expect("qwen- prefix must resolve to OpenRouter metadata");
+        assert_eq!(meta2.provider, ProviderKind::OpenRouter);
+        assert_eq!(meta2.auth_env, "OPENROUTER_API_KEY");
 
-        // detect_provider_kind must agree even if ANTHROPIC_API_KEY is set
+        // detect_provider_kind must agree
         let kind = detect_provider_kind("qwen/qwen3-coder");
         assert_eq!(
             kind,
-            ProviderKind::OpenAi,
-            "qwen/ prefix must win over auth-sniffer order"
+            ProviderKind::OpenRouter,
+            "qwen/ prefix must route to OpenRouter"
         );
     }
 
@@ -768,6 +813,7 @@ NO_EQUALS_LINE
         let _openai = EnvVarGuard::set("OPENAI_API_KEY", None);
         let _xai = EnvVarGuard::set("XAI_API_KEY", None);
         let _dashscope = EnvVarGuard::set("DASHSCOPE_API_KEY", None);
+        let _openrouter = EnvVarGuard::set("OPENROUTER_API_KEY", None);
 
         // when
         let hint = anthropic_missing_credentials_hint();
@@ -786,6 +832,7 @@ NO_EQUALS_LINE
         let _openai = EnvVarGuard::set("OPENAI_API_KEY", Some("sk-openrouter-varleg"));
         let _xai = EnvVarGuard::set("XAI_API_KEY", None);
         let _dashscope = EnvVarGuard::set("DASHSCOPE_API_KEY", None);
+        let _openrouter = EnvVarGuard::set("OPENROUTER_API_KEY", None);
 
         // when
         let hint = anthropic_missing_credentials_hint()
@@ -817,6 +864,7 @@ NO_EQUALS_LINE
         let _openai = EnvVarGuard::set("OPENAI_API_KEY", None);
         let _xai = EnvVarGuard::set("XAI_API_KEY", Some("xai-test-key"));
         let _dashscope = EnvVarGuard::set("DASHSCOPE_API_KEY", None);
+        let _openrouter = EnvVarGuard::set("OPENROUTER_API_KEY", None);
 
         // when
         let hint = anthropic_missing_credentials_hint()
@@ -894,6 +942,7 @@ NO_EQUALS_LINE
         let _openai = EnvVarGuard::set("OPENAI_API_KEY", None);
         let _xai = EnvVarGuard::set("XAI_API_KEY", None);
         let _dashscope = EnvVarGuard::set("DASHSCOPE_API_KEY", None);
+        let _openrouter = EnvVarGuard::set("OPENROUTER_API_KEY", None);
 
         // when
         let error = anthropic_missing_credentials();
@@ -928,6 +977,7 @@ NO_EQUALS_LINE
         let _openai = EnvVarGuard::set("OPENAI_API_KEY", Some("sk-openrouter-varleg"));
         let _xai = EnvVarGuard::set("XAI_API_KEY", None);
         let _dashscope = EnvVarGuard::set("DASHSCOPE_API_KEY", None);
+        let _openrouter = EnvVarGuard::set("OPENROUTER_API_KEY", None);
 
         // when
         let error = anthropic_missing_credentials();
@@ -971,6 +1021,7 @@ NO_EQUALS_LINE
         let _openai = EnvVarGuard::set("OPENAI_API_KEY", Some(""));
         let _xai = EnvVarGuard::set("XAI_API_KEY", None);
         let _dashscope = EnvVarGuard::set("DASHSCOPE_API_KEY", None);
+        let _openrouter = EnvVarGuard::set("OPENROUTER_API_KEY", None);
 
         // when
         let hint = anthropic_missing_credentials_hint();

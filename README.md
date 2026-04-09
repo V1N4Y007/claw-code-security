@@ -1,4 +1,4 @@
-# Claw Code
+# VinayCode
 
 <p align="center">
   <a href="https://github.com/ultraworkers/claw-code">ultraworkers/claw-code</a>
@@ -25,18 +25,18 @@
 </p>
 
 <p align="center">
-  <img src="assets/claw-hero.jpeg" alt="Claw Code" width="300" />
+  <img src="assets/claw-hero.jpeg" alt="VinayCode" width="300" />
 </p>
 
-Claw Code is the public Rust implementation of the `claw` CLI agent harness.
-The canonical implementation lives in [`rust/`](./rust), and the current source of truth for this repository is **ultraworkers/claw-code**.
+VinayCode is the public Rust implementation of the `vinaycode` CLI agent harness.
+The canonical implementation lives in [`rust/`](./rust), and the current source of truth for this repository is **ultraworkers/vinaycode**.
 
 > [!IMPORTANT]
-> Start with [`USAGE.md`](./USAGE.md) for build, auth, CLI, session, and parity-harness workflows. Make `claw doctor` your first health check after building, use [`rust/README.md`](./rust/README.md) for crate-level details, read [`PARITY.md`](./PARITY.md) for the current Rust-port checkpoint, and see [`docs/container.md`](./docs/container.md) for the container-first workflow.
+> Start with [`USAGE.md`](./USAGE.md) for build, auth, CLI, session, and parity-harness workflows. Make `vinaycode doctor` your first health check after building, use [`rust/README.md`](./rust/README.md) for crate-level details, read [`PARITY.md`](./PARITY.md) for the current Rust-port checkpoint, and see [`docs/container.md`](./docs/container.md) for the container-first workflow.
 
 ## Current repository shape
 
-- **`rust/`** — canonical Rust workspace and the `claw` CLI binary
+- **`rust/`** — canonical Rust workspace and the `vinaycode` CLI binary
 - **`USAGE.md`** — task-oriented usage guide for the current product surface
 - **`PARITY.md`** — Rust-port parity status and migration notes
 - **`ROADMAP.md`** — active roadmap and cleanup backlog
@@ -46,7 +46,7 @@ The canonical implementation lives in [`rust/`](./rust), and the current source 
 ## Quick start
 
 > [!NOTE]
-> **`cargo install clawcode` will not work** — this package is not published on crates.io. Build from source as shown below.
+> **`cargo install vinaycode` will not work** — this package is not published on crates.io. Build from source as shown below.
 
 ```bash
 # 1. Clone and build
@@ -54,21 +54,21 @@ git clone https://github.com/ultraworkers/claw-code
 cd claw-code/rust
 cargo build --workspace
 
-# 2. Set your API key (Anthropic API key — not a Claude subscription)
-export ANTHROPIC_API_KEY="sk-ant-..."
+# 2. Set your API key (OpenRouter API key)
+export OPENROUTER_API_KEY="sk-or-v1-..."
 
 # 3. Verify everything is wired correctly
-./target/debug/claw doctor
+./target/debug/vinaycode doctor
 
 # 4. Run a prompt
-./target/debug/claw prompt "say hello"
+./target/debug/vinaycode prompt "say hello"
 ```
 
 > [!NOTE]
-> **Windows (PowerShell):** the binary is `claw.exe`, not `claw`. Use `.\target\debug\claw.exe` or run `cargo run -- prompt "say hello"` to skip the path lookup.
+> **Windows (PowerShell):** the binary is `vinaycode.exe`. Use `.\target\debug\vinaycode.exe` or run `cargo run -- prompt "say hello"` to skip the path lookup.
 
 > [!NOTE]
-> **Auth:** claw requires an **API key** (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, etc.) — Claude subscription login is not a supported auth path.
+> **Auth:** vinaycode requires an **API key** (`OPENROUTER_API_KEY`, `ANTHROPIC_API_KEY`, etc.) — Claude subscription login is not a supported auth path.
 
 Run the workspace test suite:
 
@@ -88,7 +88,7 @@ cargo test --workspace
 
 ## Ecosystem
 
-Claw Code is built in the open alongside the broader UltraWorkers toolchain:
+VinayCode is built in the open alongside the broader UltraWorkers toolchain:
 
 - [clawhip](https://github.com/Yeachan-Heo/clawhip)
 - [oh-my-openagent](https://github.com/code-yeongyu/oh-my-openagent)

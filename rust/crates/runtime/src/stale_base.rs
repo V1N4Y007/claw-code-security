@@ -22,10 +22,10 @@ pub enum BaseCommitSource {
     File(String),
 }
 
-/// Read the `.claw-base` file from the given directory and return the trimmed
+/// Read the `.vinaycode-base` file from the given directory and return the trimmed
 /// commit hash, or `None` when the file is absent or empty.
-pub fn read_claw_base_file(cwd: &Path) -> Option<String> {
-    let path = cwd.join(".claw-base");
+pub fn read_vinaycode_base_file(cwd: &Path) -> Option<String> {
+    let path = cwd.join(".vinaycode-base");
     let content = std::fs::read_to_string(path).ok()?;
     let trimmed = content.trim();
     if trimmed.is_empty() {
@@ -36,7 +36,7 @@ pub fn read_claw_base_file(cwd: &Path) -> Option<String> {
 }
 
 /// Resolve the expected base commit: prefer the `--base-commit` flag value,
-/// fall back to reading `.claw-base` from `cwd`.
+/// fall back to reading `.vinaycode-base` from `cwd`.
 pub fn resolve_expected_base(flag_value: Option<&str>, cwd: &Path) -> Option<BaseCommitSource> {
     if let Some(value) = flag_value {
         let trimmed = value.trim();
@@ -44,7 +44,7 @@ pub fn resolve_expected_base(flag_value: Option<&str>, cwd: &Path) -> Option<Bas
             return Some(BaseCommitSource::Flag(trimmed.to_string()));
         }
     }
-    read_claw_base_file(cwd).map(BaseCommitSource::File)
+    read_vinaycode_base_file(cwd).map(BaseCommitSource::File)
 }
 
 /// Verify that the worktree HEAD matches `expected_base`.
@@ -250,59 +250,59 @@ mod tests {
     }
 
     #[test]
-    fn reads_claw_base_file() {
+    fn reads_vinaycode_base_file() {
         // given
         let root = temp_dir();
         fs::create_dir_all(&root).expect("create dir");
-        fs::write(root.join(".claw-base"), "abc1234def5678\n").expect("write .claw-base");
-
+        fs::write(root.join(".vinaycode-base"), "abc1234def5678\n").expect("write .vinaycode-base");
+ 
         // when
-        let value = read_claw_base_file(&root);
-
+        let value = read_vinaycode_base_file(&root);
+ 
         // then
         assert_eq!(value, Some("abc1234def5678".to_string()));
         fs::remove_dir_all(&root).expect("cleanup");
     }
-
+ 
     #[test]
-    fn returns_none_for_missing_claw_base_file() {
+    fn returns_none_for_missing_vinaycode_base_file() {
         // given
         let root = temp_dir();
         fs::create_dir_all(&root).expect("create dir");
-
+ 
         // when
-        let value = read_claw_base_file(&root);
-
+        let value = read_vinaycode_base_file(&root);
+ 
         // then
         assert!(value.is_none());
         fs::remove_dir_all(&root).expect("cleanup");
     }
-
+ 
     #[test]
-    fn returns_none_for_empty_claw_base_file() {
+    fn returns_none_for_empty_vinaycode_base_file() {
         // given
         let root = temp_dir();
         fs::create_dir_all(&root).expect("create dir");
-        fs::write(root.join(".claw-base"), "  \n").expect("write empty .claw-base");
-
+        fs::write(root.join(".vinaycode-base"), "  \n").expect("write empty .vinaycode-base");
+ 
         // when
-        let value = read_claw_base_file(&root);
-
+        let value = read_vinaycode_base_file(&root);
+ 
         // then
         assert!(value.is_none());
         fs::remove_dir_all(&root).expect("cleanup");
     }
-
+ 
     #[test]
     fn resolve_expected_base_prefers_flag_over_file() {
         // given
         let root = temp_dir();
         fs::create_dir_all(&root).expect("create dir");
-        fs::write(root.join(".claw-base"), "from_file\n").expect("write .claw-base");
-
+        fs::write(root.join(".vinaycode-base"), "from_file\n").expect("write .vinaycode-base");
+ 
         // when
         let source = resolve_expected_base(Some("from_flag"), &root);
-
+ 
         // then
         assert_eq!(
             source,
@@ -310,17 +310,17 @@ mod tests {
         );
         fs::remove_dir_all(&root).expect("cleanup");
     }
-
+ 
     #[test]
     fn resolve_expected_base_falls_back_to_file() {
         // given
         let root = temp_dir();
         fs::create_dir_all(&root).expect("create dir");
-        fs::write(root.join(".claw-base"), "from_file\n").expect("write .claw-base");
-
+        fs::write(root.join(".vinaycode-base"), "from_file\n").expect("write .vinaycode-base");
+ 
         // when
         let source = resolve_expected_base(None, &root);
-
+ 
         // then
         assert_eq!(
             source,
@@ -328,21 +328,21 @@ mod tests {
         );
         fs::remove_dir_all(&root).expect("cleanup");
     }
-
+ 
     #[test]
     fn resolve_expected_base_returns_none_when_nothing_available() {
         // given
         let root = temp_dir();
         fs::create_dir_all(&root).expect("create dir");
-
+ 
         // when
         let source = resolve_expected_base(None, &root);
-
+ 
         // then
         assert!(source.is_none());
         fs::remove_dir_all(&root).expect("cleanup");
     }
-
+ 
     #[test]
     fn format_warning_returns_message_for_diverged() {
         // given
@@ -350,72 +350,72 @@ mod tests {
             expected: "abc1234".to_string(),
             actual: "def5678".to_string(),
         };
-
+ 
         // when
         let warning = format_stale_base_warning(&state);
-
+ 
         // then
         let message = warning.expect("should produce warning");
         assert!(message.contains("abc1234"));
         assert!(message.contains("def5678"));
         assert!(message.contains("stale codebase"));
     }
-
+ 
     #[test]
     fn format_warning_returns_none_for_matches() {
         // given
         let state = BaseCommitState::Matches;
-
+ 
         // when
         let warning = format_stale_base_warning(&state);
-
+ 
         // then
         assert!(warning.is_none());
     }
-
+ 
     #[test]
     fn format_warning_returns_none_for_no_expected_base() {
         // given
         let state = BaseCommitState::NoExpectedBase;
-
+ 
         // when
         let warning = format_stale_base_warning(&state);
-
+ 
         // then
         assert!(warning.is_none());
     }
-
+ 
     #[test]
-    fn matches_with_claw_base_file_in_real_repo() {
+    fn matches_with_vinaycode_base_file_in_real_repo() {
         // given
         let root = temp_dir();
         init_repo(&root);
         let sha = head_sha(&root);
-        fs::write(root.join(".claw-base"), format!("{sha}\n")).expect("write .claw-base");
+        fs::write(root.join(".vinaycode-base"), format!("{sha}\n")).expect("write .vinaycode-base");
         let source = resolve_expected_base(None, &root);
-
+ 
         // when
         let state = check_base_commit(&root, source.as_ref());
-
+ 
         // then
         assert_eq!(state, BaseCommitState::Matches);
         fs::remove_dir_all(&root).expect("cleanup");
     }
-
+ 
     #[test]
-    fn diverged_with_claw_base_file_after_new_commit() {
+    fn diverged_with_vinaycode_base_file_after_new_commit() {
         // given
         let root = temp_dir();
         init_repo(&root);
         let old_sha = head_sha(&root);
-        fs::write(root.join(".claw-base"), format!("{old_sha}\n")).expect("write .claw-base");
+        fs::write(root.join(".vinaycode-base"), format!("{old_sha}\n")).expect("write .vinaycode-base");
         commit_file(&root, "new.txt", "advance head");
         let new_sha = head_sha(&root);
         let source = resolve_expected_base(None, &root);
-
+ 
         // when
         let state = check_base_commit(&root, source.as_ref());
-
+ 
         // then
         assert_eq!(
             state,

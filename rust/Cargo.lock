@@ -1196,26 +1196,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b39cdef0fa800fc44525c84ccb54a029961a8215f9619753635a9c0d2538d46d"
 
 [[package]]
-name = "rusty-claude-cli"
-version = "0.1.0"
-dependencies = [
- "api",
- "commands",
- "compat-harness",
- "crossterm",
- "mock-anthropic-service",
- "plugins",
- "pulldown-cmark",
- "runtime",
- "rustyline",
- "serde",
- "serde_json",
- "syntect",
- "tokio",
- "tools",
-]
-
-[[package]]
 name = "rustyline"
 version = "15.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1724,6 +1704,26 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
+
+[[package]]
+name = "vinaycode"
+version = "0.1.0"
+dependencies = [
+ "api",
+ "commands",
+ "compat-harness",
+ "crossterm",
+ "mock-anthropic-service",
+ "plugins",
+ "pulldown-cmark",
+ "runtime",
+ "rustyline",
+ "serde",
+ "serde_json",
+ "syntect",
+ "tokio",
+ "tools",
+]
 
 [[package]]
 name = "walkdir"

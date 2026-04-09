@@ -7,7 +7,7 @@ use crate::json::JsonValue;
 use crate::sandbox::{FilesystemIsolationMode, SandboxConfig};
 
 /// Schema name advertised by generated settings files.
-pub const CLAW_SETTINGS_SCHEMA_NAME: &str = "SettingsSchema";
+pub const VINAYCODE_SETTINGS_SCHEMA_NAME: &str = "SettingsSchema";
 
 /// Origin of a loaded settings file in the configuration precedence chain.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -241,8 +241,8 @@ impl ConfigLoader {
     #[must_use]
     pub fn discover(&self) -> Vec<ConfigEntry> {
         let user_legacy_path = self.config_home.parent().map_or_else(
-            || PathBuf::from(".claw.json"),
-            |parent| parent.join(".claw.json"),
+            || PathBuf::from(".vinaycode.json"),
+            |parent| parent.join(".vinaycode.json"),
         );
         vec![
             ConfigEntry {
@@ -255,15 +255,15 @@ impl ConfigLoader {
             },
             ConfigEntry {
                 source: ConfigSource::Project,
-                path: self.cwd.join(".claw.json"),
+                path: self.cwd.join(".vinaycode.json"),
             },
             ConfigEntry {
                 source: ConfigSource::Project,
-                path: self.cwd.join(".claw").join("settings.json"),
+                path: self.cwd.join(".vinaycode").join("settings.json"),
             },
             ConfigEntry {
                 source: ConfigSource::Local,
-                path: self.cwd.join(".claw").join("settings.local.json"),
+                path: self.cwd.join(".vinaycode").join("settings.local.json"),
             },
         ]
     }
@@ -558,10 +558,10 @@ impl RuntimePluginConfig {
 #[must_use]
 /// Returns the default per-user config directory used by the runtime.
 pub fn default_config_home() -> PathBuf {
-    std::env::var_os("CLAW_CONFIG_HOME")
+    std::env::var_os("VINAYCODE_CONFIG_HOME")
         .map(PathBuf::from)
-        .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".claw")))
-        .unwrap_or_else(|| PathBuf::from(".claw"))
+        .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".vinaycode")))
+        .unwrap_or_else(|| PathBuf::from(".vinaycode"))
 }
 
 impl RuntimeHookConfig {
@@ -672,7 +672,7 @@ struct ParsedConfigFile {
 }
 
 fn read_optional_json_object(path: &Path) -> Result<Option<ParsedConfigFile>, ConfigError> {
-    let is_legacy_config = path.file_name().and_then(|name| name.to_str()) == Some(".claw.json");
+    let is_legacy_config = path.file_name().and_then(|name| name.to_str()) == Some(".vinaycode.json");
     let contents = match fs::read_to_string(path) {
         Ok(contents) => contents,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),

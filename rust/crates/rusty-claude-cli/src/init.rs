@@ -8,8 +8,8 @@ const STARTER_CLAW_JSON: &str = concat!(
     "  }\n",
     "}\n",
 );
-const GITIGNORE_COMMENT: &str = "# Claw Code local artifacts";
-const GITIGNORE_ENTRIES: [&str; 2] = [".claw/settings.local.json", ".claw/sessions/"];
+const GITIGNORE_COMMENT: &str = "# VinayCode local artifacts";
+const GITIGNORE_ENTRIES: [&str; 2] = [".vinaycode/settings.local.json", ".vinaycode/sessions/"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum InitStatus {
@@ -80,16 +80,16 @@ struct RepoDetection {
 pub(crate) fn initialize_repo(cwd: &Path) -> Result<InitReport, Box<dyn std::error::Error>> {
     let mut artifacts = Vec::new();
 
-    let claw_dir = cwd.join(".claw");
+    let vinaycode_dir = cwd.join(".vinaycode");
     artifacts.push(InitArtifact {
-        name: ".claw/",
-        status: ensure_dir(&claw_dir)?,
+        name: ".vinaycode/",
+        status: ensure_dir(&vinaycode_dir)?,
     });
 
-    let claw_json = cwd.join(".claw.json");
+    let vinaycode_json = cwd.join(".vinaycode.json");
     artifacts.push(InitArtifact {
-        name: ".claw.json",
-        status: write_file_if_missing(&claw_json, STARTER_CLAW_JSON)?,
+        name: ".vinaycode.json",
+        status: write_file_if_missing(&vinaycode_json, STARTER_CLAW_JSON)?,
     });
 
     let gitignore = cwd.join(".gitignore");
@@ -98,11 +98,11 @@ pub(crate) fn initialize_repo(cwd: &Path) -> Result<InitReport, Box<dyn std::err
         status: ensure_gitignore_entries(&gitignore)?,
     });
 
-    let claude_md = cwd.join("CLAUDE.md");
+    let vinaycode_md = cwd.join("VINAYCODE.md");
     let content = render_init_claude_md(cwd);
     artifacts.push(InitArtifact {
-        name: "CLAUDE.md",
-        status: write_file_if_missing(&claude_md, &content)?,
+        name: "VINAYCODE.md",
+        status: write_file_if_missing(&vinaycode_md, &content)?,
     });
 
     Ok(InitReport {
@@ -162,9 +162,9 @@ fn ensure_gitignore_entries(path: &Path) -> Result<InitStatus, std::io::Error> {
 pub(crate) fn render_init_claude_md(cwd: &Path) -> String {
     let detection = detect_repo(cwd);
     let mut lines = vec![
-        "# CLAUDE.md".to_string(),
+        "# VINAYCODE.md".to_string(),
         String::new(),
-        "This file provides guidance to Claw Code (clawcode.dev) when working with code in this repository.".to_string(),
+        "This file provides guidance to VinayCode (vinaycode.dev) when working with code in this repository.".to_string(),
         String::new(),
     ];
 
@@ -209,8 +209,8 @@ pub(crate) fn render_init_claude_md(cwd: &Path) -> String {
 
     lines.push("## Working agreement".to_string());
     lines.push("- Prefer small, reviewable changes and keep generated bootstrap files aligned with actual repo workflows.".to_string());
-    lines.push("- Keep shared defaults in `.claw.json`; reserve `.claw/settings.local.json` for machine-local overrides.".to_string());
-    lines.push("- Do not overwrite existing `CLAUDE.md` content automatically; update it intentionally when repo workflows change.".to_string());
+    lines.push("- Keep shared defaults in `.vinaycode.json`; reserve `.vinaycode/settings.local.json` for machine-local overrides.".to_string());
+    lines.push("- Do not overwrite existing `VINAYCODE.md` content automatically; update it intentionally when repo workflows change.".to_string());
     lines.push(String::new());
 
     lines.join("\n")
